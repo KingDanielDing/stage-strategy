@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Output files (charts, CSVs)
+*.png
+*.csv
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Cache
+.profile_cache.json
+
+# Render
+render.yaml

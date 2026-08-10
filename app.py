@@ -57,11 +57,15 @@ if mode.startswith("📈"):
     st.subheader(f"🔍 Single Stock Analysis: {ticker}")
     st.caption(f"Period: {start} → {end}")
 
-    with st.spinner(f"Fetching data for {ticker} …"):
-        raw = retrieve_data(ticker, end, start)
+    try:
+        with st.spinner(f"Fetching data for {ticker} …"):
+            raw = retrieve_data(ticker, end, start)
+    except Exception as e:
+        st.error(f"❌ Invalid ticker **{ticker}** — could not fetch data. ({e})")
+        st.stop()
 
     if raw.empty:
-        st.error(f"❌ No data returned for {ticker}. Check the ticker symbol and date range.")
+        st.error(f"❌ No data returned for **{ticker}**. Check the ticker symbol and date range.")
         st.stop()
 
     st.success(f"✅ Fetched {len(raw)} daily bars")
@@ -173,40 +177,40 @@ else:
     st.subheader(f"🔄 Rolling Window Analysis: {ticker}")
     st.caption(f"Period: {start} → {end} | Window: 1 year | Step: 1 month")
 
-    with st.spinner(f"Running rolling analysis for {ticker} (this may take a while) …"):
-        results_df, raw_all = run_rolling_analysis(
-            ticker,
-            window_years=1,
-            step_months=1,
-            start_date=start,
-            end_date=end,
-        )
+    try:
+        with st.spinner(f"Running rolling analysis for {ticker} …"):
+            results_df, raw_all = run_rolling_analysis(
+                ticker, window_years=1, step_months=1,
+                start_date=start, end_date=end,
+            )
 
-    if results_df.empty:
-        st.error("❌ No results. Try a longer date range.")
-        st.stop()
+        if results_df.empty:
+            st.error("❌ No results. Try a longer date range.")
+            st.stop()
 
-    valid = results_df[results_df["Trades"] > 0]
-    c1, c2, c3 = st.columns(3)
-    c1.metric("📊 Windows", len(results_df), f"{len(valid)} w/ trades")
-    if not valid.empty:
-        c2.metric("📈 Avg Return", f"{valid['Return_%'].mean():+.2f}%")
-        c3.metric("🎯 Avg Win Rate", f"{valid['Win_Rate_%'].mean():.1f}%")
+        valid = results_df[results_df["Trades"] > 0]
+        c1, c2, c3 = st.columns(3)
+        c1.metric("📊 Windows", len(results_df), f"{len(valid)} w/ trades")
+        if not valid.empty:
+            c2.metric("📈 Avg Return", f"{valid['Return_%'].mean():+.2f}%")
+            c3.metric("🎯 Avg Win Rate", f"{valid['Win_Rate_%'].mean():.1f}%")
 
-    st.subheader("📈 Rolling Stage")
-    fig_rolling = plot_rolling_results(results_df, raw_all, ticker)
-    if fig_rolling:
-        st.pyplot(fig_rolling)
-        plt.close(fig_rolling)
+        st.subheader("📈 Rolling Stage")
+        fig_rolling = plot_rolling_results(results_df, raw_all, ticker)
+        if fig_rolling:
+            st.pyplot(fig_rolling)
+            plt.close(fig_rolling)
 
-    st.subheader("📋 Rolling Results")
-    display_cols = [
-        c for c in ["Window_End", "Return_%", "Win_Rate_%", "Trades", "Wins", "Losses"]
-        if c in results_df.columns
-    ]
-    rolling_display = results_df[display_cols].copy()
-    if "Window_End" in rolling_display.columns:
-        rolling_display["Window_End"] = pd.to_datetime(
-            rolling_display["Window_End"]
-        ).dt.strftime("%Y-%m-%d")
-    st.dataframe(rolling_display, use_container_width=True, height=400)
+        st.subheader("📋 Rolling Results")
+        display_cols = [
+            c for c in ["Window_End", "Return_%", "Win_Rate_%", "Trades", "Wins", "Losses"]
+            if c in results_df.columns
+        ]
+        rolling_display = results_df[display_cols].copy()
+        if "Window_End" in rolling_display.columns:
+            rolling_display["Window_End"] = pd.to_datetime(
+                rolling_display["Window_End"]
+            ).dt.strftime("%Y-%m-%d")
+        st.dataframe(rolling_display, use_container_width=True, height=400)
+    except Exception as e:
+        st.error(f"❌ Analysis failed for **{ticker}**: {e}")

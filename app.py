@@ -3,7 +3,7 @@ app.py - Stage Pattern Analyzer (Streamlit)
 """
 import warnings, numpy as np, pandas as pd, matplotlib.pyplot as plt, streamlit as st
 from daily_stage_v4 import retrieve_data, find_fvgs, generate_finals, compute_macd, generate_pure_stages, deduplicate_stages, generate_trade_signals, backtest_trades
-from daily_stage_v6 import _plot, MACD_FILTER_MODE, INITIAL_CAPITAL, DEFAULT_START, DEFAULT_END
+from daily_stage_v6 import _plot, MACD_FILTER_MODE, INITIAL_CAPITAL
 from rolling_stage_analysis import run_rolling_analysis, plot_rolling_results
 warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Stage Pattern Analyzer", layout="wide")
@@ -22,9 +22,13 @@ with st.sidebar:
     st.markdown("---")
     ticker = st.text_input("**Ticker Symbol**", value="AAPL",
                            placeholder="e.g. AAPL, NVDA, TSLA").strip().upper()
+    # Compute defaults dynamically in Beijing time (UTC+8)
+    beijing_now = pd.Timestamp.now(tz="Asia/Shanghai")
+    default_end = beijing_now.date()
+    default_start = (beijing_now - pd.Timedelta(days=730)).date()
     c1, c2 = st.columns(2)
-    with c1: start_date = st.date_input("**Start**", value=pd.to_datetime(DEFAULT_START))
-    with c2: end_date = st.date_input("**End**", value=pd.to_datetime(DEFAULT_END))
+    with c1: start_date = st.date_input("**Start**", value=default_start)
+    with c2: end_date = st.date_input("**End**", value=default_end)
     st.markdown("---")
     if st.button("🚀 Run Analysis", type="primary", use_container_width=True):
         st.session_state["run"] = True

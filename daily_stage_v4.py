@@ -96,6 +96,11 @@ def find_fvgs(mystock: pd.DataFrame) -> pd.DataFrame:
         fvg_df["Benchmark"] = pd.Series(dtype=float)
         return fvg_df
 
+    # Ensure both gap-direction columns exist (a stock may have only one type)
+    for _col in ["Current_High", "Current_Low", "Prev_High", "Prev_Low"]:
+        if _col not in fvg_df.columns:
+            fvg_df[_col] = np.nan
+
     fvg_df["Bench"] = np.where(
         fvg_df["FVG_Type"] == "Bullish",
         fvg_df["Current_High"],

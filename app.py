@@ -5,6 +5,7 @@ import warnings, numpy as np, pandas as pd, matplotlib.pyplot as plt, streamlit 
 from daily_stage_v4 import retrieve_data, find_fvgs, generate_finals, compute_macd, generate_pure_stages, deduplicate_stages, generate_trade_signals, backtest_trades
 from daily_stage_v6 import _plot, MACD_FILTER_MODE, INITIAL_CAPITAL
 from rolling_stage_analysis import run_rolling_analysis, plot_rolling_results
+from batch_rolling_screen import evaluate_rolling
 warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Stage Pattern Analyzer", layout="wide")
 
@@ -198,6 +199,27 @@ else:
         if not valid.empty:
             c2.metric("📈 Avg Return", f"{valid['Return_%'].mean():+.2f}%")
             c3.metric("🎯 Avg Win Rate", f"{valid['Win_Rate_%'].mean():.1f}%")
+
+        # Pass/Fail test (same algorithm as batch_rolling_screen)
+        verdict = evaluate_rolling(results_df)
+        if verdict["Error"]:
+            st.info(f"⚠️ Pass/Fail test skipped: {verdict['Error']}")
+        elif verdict["Pass"]:
+            st.markdown(
+                '<div class="section-header">🎯 Pass/Fail Test</div>'
+                '<span class="signal-badge buy">✅ PASS</span>&nbsp;&nbsp;'
+                f'upward trend — latest <b>{verdict["Latest"]:+.2f}%</b> &gt; '
+                f'prev <b>{verdict["Prev"]:+.2f}%</b> (slope <b>{verdict["Slope"]:+.2f}</b>)',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                '<div class="section-header">🎯 Pass/Fail Test</div>'
+                '<span class="signal-badge sell">❌ FAIL</span>&nbsp;&nbsp;'
+                f'{verdict["Reason"]} — latest <b>{verdict["Latest"]:+.2f}%</b>, '
+                f'prev <b>{verdict["Prev"]:+.2f}%</b>, slope <b>{verdict["Slope"]:+.2f}</b>',
+                unsafe_allow_html=True,
+            )
 
         st.subheader("📈 Rolling Stage")
         fig_rolling = plot_rolling_results(results_df, raw_all, ticker)

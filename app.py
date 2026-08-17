@@ -31,7 +31,7 @@ with st.sidebar:
     with c1: start_date = st.date_input("**Start**", value=default_start)
     with c2: end_date = st.date_input("**End**", value=default_end)
     st.markdown("---")
-    if st.button("🚀 Run Analysis", type="primary", use_container_width=True):
+    if st.button("🚀 Run Analysis", type="primary", width="stretch"):
         st.session_state["run"] = True
         st.session_state["ticker"] = ticker
         st.session_state["start"] = start_date.strftime("%Y-%m-%d")
@@ -143,13 +143,13 @@ if mode.startswith("📈"):
         stage_cols = [c for c in ["Date","Close","Benchmark","Bench","Stage"] if c in deduped.columns]
         sd = deduped[stage_cols].copy()
         if "Date" in sd.columns: sd["Date"] = pd.to_datetime(sd["Date"]).dt.strftime("%Y-%m-%d")
-        st.dataframe(sd, use_container_width=True, height=350)
+        st.dataframe(sd, width="stretch", height=350)
 
     with tab2:
         sig_cols = [c for c in ["Date","Stage","Signal","Reason"] if c in signals.columns]
         sg = signals[sig_cols].copy()
         if "Date" in sg.columns: sg["Date"] = pd.to_datetime(sg["Date"]).dt.strftime("%Y-%m-%d")
-        st.dataframe(sg, use_container_width=True, height=350)
+        st.dataframe(sg, width="stretch", height=350)
 
     with tab3:
         if trades:
@@ -157,7 +157,7 @@ if mode.startswith("📈"):
             for col in ["Entry Date","Exit Date"]:
                 if col in trades_df.columns:
                     trades_df[col] = pd.to_datetime(trades_df[col]).dt.strftime("%Y-%m-%d")
-            st.dataframe(trades_df, use_container_width=True, height=350)
+            st.dataframe(trades_df, width="stretch", height=350)
         else:
             st.info("No trades to display.")
 
@@ -237,6 +237,6 @@ else:
             rolling_display["Window_End"] = pd.to_datetime(
                 rolling_display["Window_End"]
             ).dt.strftime("%Y-%m-%d")
-        st.dataframe(rolling_display, use_container_width=True, height=400)
+        st.dataframe(rolling_display, width="stretch", height=400)
     except Exception as e:
         st.error(f"❌ Analysis failed for **{ticker}**: {e}")

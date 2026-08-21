@@ -207,7 +207,6 @@ def _plot(raw_df, signals, trades, ticker, stats=None):
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax.set_title(f"{ticker}  -  Stage-Pattern Strategy (v6)", fontsize=14, fontweight="bold")
     ax.set_ylabel("Price")
-    ax.legend(loc="upper left")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
     return fig

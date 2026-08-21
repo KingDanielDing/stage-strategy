@@ -25,7 +25,7 @@ with st.sidebar:
                            placeholder="e.g. AAPL, NVDA, TSLA").strip().upper()
     # Compute defaults dynamically in Beijing time (UTC+8)
     beijing_now = pd.Timestamp.now(tz="Asia/Shanghai")
-    default_end = beijing_now.date()
+    default_end = (beijing_now + pd.Timedelta(days=1)).date()
     default_start = (beijing_now - pd.Timedelta(days=730)).date()
     c1, c2 = st.columns(2)
     with c1: start_date = st.date_input("**Start**", value=default_start)
@@ -127,6 +127,11 @@ if mode.startswith("📈"):
             "win_rate": win_rate, "avg_win": avg_win, "avg_loss": avg_loss,
             "efficiency": total_return / len(trades),
         }
+
+        r3c1, r3c2, r3c3 = st.columns(3)
+        eff = stats["efficiency"]
+        r3c3.markdown(metric_html("Efficiency", f"{eff:+.2f}%", "",
+                                  "green" if eff > 0 else "red"), unsafe_allow_html=True)
     else:
         st.warning("No trades generated in this period.")
         stats = None
@@ -154,6 +159,8 @@ if mode.startswith("📈"):
     with tab3:
         if trades:
             trades_df = pd.DataFrame(trades)
+            if "Entry Date" in trades_df.columns:
+                trades_df = trades_df.sort_values("Entry Date", ascending=False)
             for col in ["Entry Date","Exit Date"]:
                 if col in trades_df.columns:
                     trades_df[col] = pd.to_datetime(trades_df[col]).dt.strftime("%Y-%m-%d")
@@ -234,9 +241,9 @@ else:
         ]
         rolling_display = results_df[display_cols].copy()
         if "Window_End" in rolling_display.columns:
-            rolling_display["Window_End"] = pd.to_datetime(
-                rolling_display["Window_End"]
-            ).dt.strftime("%Y-%m-%d")
+            rolling_display["Window_End"] = pd.to_datetime(rolling_display["Window_End"])
+            rolling_display = rolling_display.sort_values("Window_End", ascending=False)
+            rolling_display["Window_End"] = rolling_display["Window_End"].dt.strftime("%Y-%m-%d")
         st.dataframe(rolling_display, width="stretch", height=400)
     except Exception as e:
         st.error(f"❌ Analysis failed for **{ticker}**: {e}")

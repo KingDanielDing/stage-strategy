@@ -160,7 +160,7 @@ if mode.startswith("📈"):
         if trades:
             trades_df = pd.DataFrame(trades)
             if "Entry Date" in trades_df.columns:
-                trades_df = trades_df.sort_values("Entry Date", ascending=False)
+                trades_df = trades_df.sort_values("Entry Date", ascending=False).reset_index(drop=True)
             for col in ["Entry Date","Exit Date"]:
                 if col in trades_df.columns:
                     trades_df[col] = pd.to_datetime(trades_df[col]).dt.strftime("%Y-%m-%d")

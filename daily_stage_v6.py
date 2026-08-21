@@ -184,25 +184,6 @@ def _plot(raw_df, signals, trades, ticker, stats=None):
         color = "#27ae60" if t["PnL %"] > 0 else "#e74c3c"
         ax.plot([ed, xd], [ep, xp], linestyle="--", linewidth=0.6, color=color, alpha=0.5)
 
-    if stats:
-        lines = [
-            f"Initial : ${stats['initial']:,.2f}",
-            f"Final   : ${stats['final']:,.2f}",
-            f"Return  : {stats['total_return']:.2f}%",
-            f"Trades  : {stats['n_trades']}",
-            f"Wins    : {stats['wins']}",
-            f"Losses  : {stats['losses']}",
-            f"Win rate: {stats['win_rate']:.1f}%",
-            f"Avg win : {stats['avg_win']:.2f}%",
-            f"Avg loss: {stats['avg_loss']:.2f}%",
-            f"Efficiency: {stats['efficiency']:.2f}%",
-        ]
-        text = "\n".join(lines)
-        props = dict(boxstyle="round,pad=0.5", facecolor="white", edgecolor="#7f8c8d", alpha=0.92)
-        ax.text(0.98, 0.02, text, transform=ax.transAxes, fontsize=9,
-                fontfamily="monospace", verticalalignment="bottom",
-                horizontalalignment="right", bbox=props)
-
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b\n%Y"))
     ax.xaxis.set_major_locator(mdates.AutoDateLocator())
     ax.set_title(f"{ticker}  -  Stage-Pattern Strategy (v6)", fontsize=14, fontweight="bold")

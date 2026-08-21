@@ -147,13 +147,19 @@ if mode.startswith("📈"):
     with tab1:
         stage_cols = [c for c in ["Date","Close","Benchmark","Bench","Stage"] if c in deduped.columns]
         sd = deduped[stage_cols].copy()
-        if "Date" in sd.columns: sd["Date"] = pd.to_datetime(sd["Date"]).dt.strftime("%Y-%m-%d")
+        if "Date" in sd.columns:
+            sd["Date"] = pd.to_datetime(sd["Date"])
+            sd = sd.sort_values("Date", ascending=False).reset_index(drop=True)
+            sd["Date"] = sd["Date"].dt.strftime("%Y-%m-%d")
         st.dataframe(sd, width="stretch", height=350)
 
     with tab2:
         sig_cols = [c for c in ["Date","Stage","Signal","Reason"] if c in signals.columns]
         sg = signals[sig_cols].copy()
-        if "Date" in sg.columns: sg["Date"] = pd.to_datetime(sg["Date"]).dt.strftime("%Y-%m-%d")
+        if "Date" in sg.columns:
+            sg["Date"] = pd.to_datetime(sg["Date"])
+            sg = sg.sort_values("Date", ascending=False).reset_index(drop=True)
+            sg["Date"] = sg["Date"].dt.strftime("%Y-%m-%d")
         st.dataframe(sg, width="stretch", height=350)
 
     with tab3:

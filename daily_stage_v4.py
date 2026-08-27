@@ -29,18 +29,34 @@ def retrieve_data(filename: str, end_date: str, start_date: str) -> pd.DataFrame
     Fetch daily OHLCV from yfinance.
     Returns DataFrame with columns [Date, Open, High, Low, Close, Volume].
     """
-    df = yf.download(filename, start=start_date, end=end_date, interval="1d")
-    df = df.reset_index()
+    df = yf.download(
+        filename,
+        start=start_date,
+        end=end_date,
+        interval="1d",
+        auto_adjust=False,
+        progress=False,
+    )
 
-    if "Datetime" in df.columns:
-        df = df.rename(columns={"Datetime": "Date"})
-    if df.index.name == "Date":
-        df = df.reset_index()
+    if df is None or df.empty:
+        return pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"])
 
-    df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
-    # Drop the multi-level column header yfinance sometimes adds
+    # Newer yfinance versions return MultiIndex columns even for a single ticker:
+    #   [('Date', ''), ('Open', 'AAPL'), ...]  or  [('Open', 'AAPL'), ...]
+    # Flatten to plain column names before selecting. droplevel() is idempotent,
+    # so this is safe for older yfinance versions that already return flat names.
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.droplevel(1)
+
+    # Bring the date index (usually named 'Date' or 'Datetime') out as a column.
+    df = df.reset_index()
+    date_col = "Date" if "Date" in df.columns else "Datetime" if "Datetime" in df.columns else None
+    if date_col is not None and date_col != "Date":
+        df = df.rename(columns={date_col: "Date"})
+    elif date_col is None and len(df.columns) and str(df.columns[0]).lower() in ("date", "datetime"):
+        df = df.rename(columns={df.columns[0]: "Date"})
+
+    df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
 
     # Drop zero-volume rows
     df = df[df["Volume"] != 0].copy()
@@ -91,10 +107,16 @@ def find_fvgs(mystock: pd.DataFrame) -> pd.DataFrame:
     fvg_df = pd.DataFrame(bullish_fvg + bearish_fvg)
 
     if fvg_df.empty:
-        # No FVGs found — return an empty frame with expected columns
-        fvg_df["Bench"] = pd.Series(dtype=float)
-        fvg_df["Benchmark"] = pd.Series(dtype=float)
-        return fvg_df
+        # No FVGs found — return an empty frame with expected columns so that
+        # generate_finals() can still merge on Date (KeyError otherwise).
+        return pd.DataFrame(
+            {
+                "Date": pd.Series(dtype="datetime64[ns]"),
+                "FVG_Type": pd.Series(dtype=object),
+                "Bench": pd.Series(dtype=float),
+                "Benchmark": pd.Series(dtype=float),
+            }
+        )
 
     # Ensure both gap-direction columns exist (a stock may have only one type)
     for _col in ["Current_High", "Current_Low", "Prev_High", "Prev_Low"]:

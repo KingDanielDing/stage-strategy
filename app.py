@@ -1,5 +1,6 @@
 """
 app.py - Stage Pattern Analyzer (Streamlit)
+python3 -m streamlit run app.py
 """
 import warnings, numpy as np, pandas as pd, matplotlib.pyplot as plt, streamlit as st
 from daily_stage_v4 import retrieve_data, find_fvgs, generate_finals, compute_macd, generate_pure_stages, deduplicate_stages, generate_trade_signals, backtest_trades

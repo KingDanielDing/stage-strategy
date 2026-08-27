@@ -175,8 +175,8 @@ def run_rolling_analysis(
     Returns
     -------
     (results_df, raw_all_df)
-        results_df : columns [Window_End, Return_%, Win_Rate_%, Trades,
-                              Wins, Losses, Final_Capital]
+        results_df : columns [Window_End, Return_%, Win_Rate_%, Avg_Win_%,
+                              Avg_Loss_%, Trades, Wins, Losses, Final_Capital]
         raw_all_df : the full fetched OHLCV data (for optional plotting)
     """
     today = pd.Timestamp.today()
@@ -258,17 +258,27 @@ def run_rolling_analysis(
             for t in window_trades:
                 cap = cap * (1 + t["PnL %"] / 100)
             total_return = (cap / INITIAL_CAPITAL - 1) * 100
+            # Average return of winning / losing trades inside this window.
+            # Same win/loss convention as Wins/Losses above (PnL % > 0 == win).
+            win_pnls = [t["PnL %"] for t in window_trades if t["PnL %"] > 0]
+            loss_pnls = [t["PnL %"] for t in window_trades if t["PnL %"] <= 0]
+            avg_win = float(np.mean(win_pnls)) if win_pnls else np.nan
+            avg_loss = float(np.mean(loss_pnls)) if loss_pnls else np.nan
         else:
             win_count = 0
             loss_count = 0
             win_rate = np.nan
             total_return = 0.0
             cap = INITIAL_CAPITAL
+            avg_win = np.nan
+            avg_loss = np.nan
 
         rows.append({
             "Window_End": window_end,
             "Return_%": round(total_return, 2),
             "Win_Rate_%": round(win_rate, 2) if not np.isnan(win_rate) else np.nan,
+            "Avg_Win_%": round(avg_win, 2) if not np.isnan(avg_win) else np.nan,
+            "Avg_Loss_%": round(avg_loss, 2) if not np.isnan(avg_loss) else np.nan,
             "Trades": len(window_trades),
             "Wins": win_count,
             "Losses": loss_count,
@@ -296,10 +306,11 @@ def plot_rolling_results(
     ticker: str,
 ):
     """
-    Three-panel chart:
-      Top  — Close price
-      Mid  — Return_% bars
-      Bot  — Win_Rate_% line with 50 % reference
+    Four-panel chart:
+      Top   — Close price
+      2nd   — Return_% bars
+      3rd   — Avg win / Avg loss return % (trailing 12-month windows)
+      Bot   — Win_Rate_% line with 50 % reference
     """
     if results_df.empty:
         print("  Nothing to plot.")
@@ -311,9 +322,9 @@ def plot_rolling_results(
     res = results_df.copy()
     res["Window_End"] = pd.to_datetime(res["Window_End"])
 
-    fig, (ax1, ax2, ax3) = plt.subplots(
-        3, 1, figsize=(16, 12),
-        gridspec_kw={"height_ratios": [2, 1, 1]},
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(
+        4, 1, figsize=(16, 14),
+        gridspec_kw={"height_ratios": [2, 1, 1, 1]},
         sharex=True,
     )
 
@@ -331,24 +342,41 @@ def plot_rolling_results(
     ax2.set_ylabel("Return %")
     ax2.grid(True, alpha=0.3)
 
-    # Panel 3: Win Rate %
-    valid = res[res["Win_Rate_%"].notna()]
-    ax3.plot(valid["Window_End"], valid["Win_Rate_%"],
-             marker="o", markersize=4, linewidth=1.2,
-             color="#2980b9", label="Win Rate %")
-    ax3.axhline(y=50, color="gray", linewidth=0.8, linestyle="--", alpha=0.6)
-    ax3.fill_between(valid["Window_End"], 50, valid["Win_Rate_%"],
-                     where=(valid["Win_Rate_%"] >= 50),
-                     color="#27ae60", alpha=0.15)
-    ax3.fill_between(valid["Window_End"], 50, valid["Win_Rate_%"],
-                     where=(valid["Win_Rate_%"] < 50),
-                     color="#e74c3c", alpha=0.15)
-    ax3.set_ylabel("Win Rate %")
-    ax3.set_xlabel("Window End Date")
-    ax3.legend(loc="upper left")
+    # Panel 3: Avg win / Avg loss return % (per trailing 12-month window)
+    if "Avg_Win_%" in res.columns and "Avg_Loss_%" in res.columns:
+        wins_v = res[res["Avg_Win_%"].notna()]
+        loss_v = res[res["Avg_Loss_%"].notna()]
+        ax3.plot(wins_v["Window_End"], wins_v["Avg_Win_%"],
+                 marker="o", markersize=4, linewidth=1.2,
+                 color="#27ae60", label="Avg Win %")
+        # Losses are stored negative; plot magnitude so both curves compare above 0
+        ax3.plot(loss_v["Window_End"], loss_v["Avg_Loss_%"].abs(),
+                 marker="o", markersize=4, linewidth=1.2,
+                 color="#e74c3c", label="Avg Loss % (abs)")
+        ax3.axhline(y=0, color="black", linewidth=0.5)
+        ax3.set_ylim(bottom=0)
+        ax3.set_ylabel("Avg Win / Loss %")
+        ax3.legend(loc="upper left")
     ax3.grid(True, alpha=0.3)
 
-    for ax in (ax1, ax2, ax3):
+    # Panel 4: Win Rate %
+    valid = res[res["Win_Rate_%"].notna()]
+    ax4.plot(valid["Window_End"], valid["Win_Rate_%"],
+             marker="o", markersize=4, linewidth=1.2,
+             color="#2980b9", label="Win Rate %")
+    ax4.axhline(y=50, color="gray", linewidth=0.8, linestyle="--", alpha=0.6)
+    ax4.fill_between(valid["Window_End"], 50, valid["Win_Rate_%"],
+                     where=(valid["Win_Rate_%"] >= 50),
+                     color="#27ae60", alpha=0.15)
+    ax4.fill_between(valid["Window_End"], 50, valid["Win_Rate_%"],
+                     where=(valid["Win_Rate_%"] < 50),
+                     color="#e74c3c", alpha=0.15)
+    ax4.set_ylabel("Win Rate %")
+    ax4.set_xlabel("Window End Date")
+    ax4.legend(loc="upper left")
+    ax4.grid(True, alpha=0.3)
+
+    for ax in (ax1, ax2, ax3, ax4):
         ax.xaxis.set_major_formatter(mdates.DateFormatter("%b\n%Y"))
         ax.xaxis.set_major_locator(mdates.AutoDateLocator())
 
@@ -538,7 +566,9 @@ def print_summary(results_df: pd.DataFrame):
             corr = valid2["Return_%"].corr(valid2["Win_Rate_%"])
             print(f"  Corr(Return, Win Rate): {corr:+.3f}")
 
-    display_cols = ["Window_End", "Return_%", "Win_Rate_%", "Trades", "Wins", "Losses"]
+    display_cols = ["Window_End", "Return_%", "Win_Rate_%", "Avg_Win_%",
+                    "Avg_Loss_%", "Trades", "Wins", "Losses"]
+    display_cols = [c for c in display_cols if c in res.columns]
     print(f"\n  Full table (first 10 + last 5 rows):")
     head = res[display_cols].head(10)
     tail = res[display_cols].tail(5)

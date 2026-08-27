@@ -242,7 +242,8 @@ else:
 
         st.subheader("📋 Rolling Results")
         display_cols = [
-            c for c in ["Window_End", "Return_%", "Win_Rate_%", "Trades", "Wins", "Losses"]
+            c for c in ["Window_End", "Return_%", "Win_Rate_%", "Avg_Win_%",
+                        "Avg_Loss_%", "Trades", "Wins", "Losses"]
             if c in results_df.columns
         ]
         rolling_display = results_df[display_cols].copy()

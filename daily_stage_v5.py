@@ -38,9 +38,14 @@ MACD_FILTER_MODE = "histogram_positive"
 MACD_SELECTIVE_PATTERNS = {(1, 3), (2, 4)}
 LOOKBACK_DAYS = 365
 
-TODAY = pd.Timestamp.today()
+# Use Beijing time (UTC+8) for all date boundaries — this is a CN/A-share
+# scanner. yfinance's `end` is exclusive, so the *fetch* boundary adds 1 day
+# (DEFAULT_END); the human-facing report date stays on the actual Beijing day.
+_BEIJING_NOW = pd.Timestamp.now(tz="Asia/Shanghai")
+TODAY = _BEIJING_NOW.tz_localize(None)
+REPORT_DATE = TODAY.strftime("%Y-%m-%d")
 DEFAULT_START = (TODAY - pd.Timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%d")
-DEFAULT_END   = TODAY.strftime("%Y-%m-%d")
+DEFAULT_END   = (TODAY + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
 
 DEFAULT_POOL: "OrderedDict[str, str]" = OrderedDict([
     ("300124.SZ", "汇川技术"),
@@ -102,7 +107,8 @@ DEFAULT_POOL: "OrderedDict[str, str]" = OrderedDict([
 # ── Profile cache ───────────────────────────────────────────────────────
 PROFILE_CACHE_FILE = os.path.join(os.path.dirname(__file__), ".profile_cache.json")
 PROFILE_START = "2023-01-01"
-PROFILE_END   = pd.Timestamp.today().strftime("%Y-%m-%d")
+# Same Beijing-time + 1-day boundary as DEFAULT_END (yfinance end is exclusive).
+PROFILE_END   = DEFAULT_END
 PROFILE_CAP   = 10000.0
 
 
@@ -312,7 +318,7 @@ def format_pool(results):
 
     print()
     print("=" * 120)
-    print(f"  STAGE SCANNER - {DEFAULT_END}  |  MACD: {mode_label} on {{{sel}}}")
+    print(f"  STAGE SCANNER - {REPORT_DATE}  |  MACD: {mode_label} on {{{sel}}}")
     print("=" * 120)
 
     def _sort_key(r):

@@ -250,11 +250,12 @@ else:
         rolling_display = results_df[display_cols].copy()
         # New metric: Win_Rate_% * (Avg_Win_% + Avg_Loss_%). Avg_Loss_% stays
         # negative here (it is stored as a negative number in results_df).
+        # Displayed as a whole number (no decimals); NaN is preserved.
         if {"Win_Rate_%", "Avg_Win_%", "Avg_Loss_%"} <= set(rolling_display.columns):
             rolling_display["Win_Rate_x_Avg_Ret_%"] = (
                 rolling_display["Win_Rate_%"]
                 * (rolling_display["Avg_Win_%"] + rolling_display["Avg_Loss_%"])
-            )
+            ).round(0).astype("Int64")
         if "Window_End" in rolling_display.columns:
             rolling_display["Window_End"] = pd.to_datetime(rolling_display["Window_End"])
             rolling_display = rolling_display.sort_values("Window_End", ascending=False)

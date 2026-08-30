@@ -8,6 +8,33 @@ from daily_stage_v6 import _plot, MACD_FILTER_MODE, INITIAL_CAPITAL
 from rolling_stage_analysis import run_rolling_analysis, plot_rolling_results
 from batch_rolling_screen import evaluate_rolling
 warnings.filterwarnings("ignore")
+
+
+def classify_regime(results_df):
+    """Classify each rolling window into regime A/B/C/D.
+
+    Direction axis  : arithmetic mean per-trade return (>= 0 means the
+                      strategy was "up" on average over the window).
+    Dispersion axis : volatility drag (arithmetic - geometric per-trade
+                      return), split at its own median across windows.
+    """
+    wr = results_df["Win_Rate_%"] / 100.0
+    aw = results_df["Avg_Win_%"].fillna(0.0)
+    al = results_df["Avg_Loss_%"].fillna(0.0)
+    arith = aw * wr + al * (1.0 - wr)
+
+    trades = results_df["Trades"].replace(0, np.nan)
+    geo = ((1.0 + results_df["Return_%"] / 100.0) ** (1.0 / trades) - 1.0) * 100.0
+    drag = arith - geo
+    med_drag = drag.median()
+
+    up = arith >= 0.0
+    vol = drag > med_drag
+    conds = [up & ~vol, up & vol, ~up & ~vol, ~up & vol]
+    choices = ["A", "B", "C", "D"]
+    return pd.Series(np.select(conds, choices, default=""), index=results_df.index)
+
+
 st.set_page_config(page_title="Stage Pattern Analyzer", layout="wide")
 
 # Custom CSS
@@ -248,14 +275,8 @@ else:
             if c in results_df.columns
         ]
         rolling_display = results_df[display_cols].copy()
-        # New metric: Win_Rate_% * (Avg_Win_% + Avg_Loss_%). Avg_Loss_% stays
-        # negative here (it is stored as a negative number in results_df).
-        # Displayed as a whole number (no decimals); NaN is preserved.
-        if {"Win_Rate_%", "Avg_Win_%", "Avg_Loss_%"} <= set(rolling_display.columns):
-            rolling_display["Win_Rate_x_Avg_Ret_%"] = (
-                rolling_display["Win_Rate_%"]
-                * (rolling_display["Avg_Win_%"] + rolling_display["Avg_Loss_%"])
-            ).round(0).astype("Int64")
+        # Regime column (A/B/C/D) replaces the old Win_Rate_x_Avg_Ret_% metric.
+        rolling_display["Regime"] = classify_regime(results_df)
         if "Window_End" in rolling_display.columns:
             rolling_display["Window_End"] = pd.to_datetime(rolling_display["Window_End"])
             rolling_display = rolling_display.sort_values("Window_End", ascending=False)

@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.patches as mpatches
 
 from daily_stage_v4 import (
     retrieve_data,
@@ -300,6 +301,23 @@ def run_rolling_analysis(
 # ---------------------------------------------------------------------------
 # Plotting
 # ---------------------------------------------------------------------------
+def _classify_regime(results_df):
+    """Return per-window regime code A/B/C/D ("" for 0-trade windows)."""
+    wr = results_df["Win_Rate_%"] / 100.0
+    aw = results_df["Avg_Win_%"].fillna(0.0)
+    al = results_df["Avg_Loss_%"].fillna(0.0)
+    arith = aw * wr + al * (1.0 - wr)
+    trades = results_df["Trades"].replace(0, np.nan)
+    geo = ((1.0 + results_df["Return_%"] / 100.0) ** (1.0 / trades) - 1.0) * 100.0
+    drag = arith - geo
+    med = drag.median()
+    up = arith >= 0.0
+    vol = drag > med
+    conds = [up & ~vol, up & vol, ~up & ~vol, ~up & vol]
+    choices = ["A", "B", "C", "D"]
+    return np.select(conds, choices, default="")
+
+
 def plot_rolling_results(
     results_df: pd.DataFrame,
     raw_df: pd.DataFrame,
@@ -335,12 +353,16 @@ def plot_rolling_results(
                   fontsize=14, fontweight="bold")
     ax1.grid(True, alpha=0.3)
 
-    # Panel 2: Return %
-    colors = ["#27ae60" if v > 0 else "#e74c3c" for v in res["Return_%"]]
+    # Panel 2: Return % — bars colored by regime A/B/C/D
+    regime = _classify_regime(res)
+    REGIME_COLORS = {"A": "#27ae60", "B": "#f39c12", "C": "#3498db", "D": "#e74c3c"}
+    colors = [REGIME_COLORS.get(r, "#95a5a6") for r in regime]
     ax2.bar(res["Window_End"], res["Return_%"], width=20, color=colors, alpha=0.85)
     ax2.axhline(y=0, color="black", linewidth=0.5)
     ax2.set_ylabel("Return %")
     ax2.grid(True, alpha=0.3)
+    handles = [mpatches.Patch(color=c, label=f"Regime {r}") for r, c in REGIME_COLORS.items()]
+    ax2.legend(handles=handles, loc="upper left", fontsize=8, ncol=4)
 
     # Panel 3: Avg win / Avg loss return % (per trailing 12-month window)
     if "Avg_Win_%" in res.columns and "Avg_Loss_%" in res.columns:

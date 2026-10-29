@@ -1,7 +1,8 @@
 services:
   - type: web
-    name: stage-strategy-smoke
+    name: stage-strategy
     env: python
     plan: free
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn smoke_test:app -b 0.0.0.0:$PORT --timeout 120"
+    startCommand: "streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true"
+    healthCheckPath: /_stcore/health

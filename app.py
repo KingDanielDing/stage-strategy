@@ -35,6 +35,49 @@ def classify_regime(results_df):
     return pd.Series(np.select(conds, choices, default=""), index=results_df.index)
 
 
+def add_expected_return_panel(fig, results_df):
+    """Append an Upper/Lower (E[ret] +/- SD) sub-chart below the Win Rate panel.
+
+    Per-trade, in %:  E  = AvgWin*p - AvgLoss*(1-p)
+                      SD = (AvgWin + AvgLoss) * sqrt(p*(1-p))
+    AvgLoss is used as a magnitude. Windows with no trades are skipped; a
+    missing Avg Win / Avg Loss counts as 0.
+    """
+    res = results_df[results_df["Trades"] > 0].copy()
+    if res.empty:
+        return fig
+    p = res["Win_Rate_%"] / 100.0
+    aw = res["Avg_Win_%"].fillna(0.0)
+    al = res["Avg_Loss_%"].fillna(0.0).abs()
+    exp_ret = aw * p - al * (1.0 - p)
+    sd = (aw + al) * np.sqrt(p * (1.0 - p))
+    upper, lower = exp_ret + sd, exp_ret - sd
+    x = pd.to_datetime(res["Window_End"])
+
+    old_axes = fig.axes
+    gs = fig.add_gridspec(5, 1, height_ratios=[2, 1, 1, 1, 1])
+    for i, ax in enumerate(old_axes):
+        ax.set_subplotspec(gs[i])
+    ax5 = fig.add_subplot(gs[4], sharex=old_axes[-1])
+    ax5.plot(x, upper, marker="o", markersize=4, linewidth=1.2,
+             color="#27ae60", label="Upper (E + SD)")
+    ax5.plot(x, lower, marker="o", markersize=4, linewidth=1.2,
+             color="#e74c3c", label="Lower (E - SD)")
+    ax5.fill_between(x, lower, upper, color="#95a5a6", alpha=0.15)
+    ax5.axhline(y=0, color="black", linewidth=0.5, linestyle="--")
+    ax5.set_ylabel("Expected Return ± SD (%)")
+    ax5.set_xlabel("Window End Date")
+    ax5.legend(loc="upper left")
+    ax5.grid(True, alpha=0.3)
+
+    # x-axis label now belongs to the new bottom panel
+    old_axes[-1].set_xlabel("")
+    old_axes[-1].tick_params(labelbottom=False)
+    fig.set_size_inches(fig.get_size_inches()[0], fig.get_size_inches()[1] * 1.15)
+    fig.tight_layout()
+    return fig
+
+
 st.set_page_config(page_title="Stage Pattern Analyzer", layout="wide")
 
 # Custom CSS
@@ -265,6 +308,7 @@ else:
         st.subheader("📈 Rolling Stage")
         fig_rolling = plot_rolling_results(results_df, raw_all, ticker)
         if fig_rolling:
+            fig_rolling = add_expected_return_panel(fig_rolling, results_df)
             st.pyplot(fig_rolling)
             plt.close(fig_rolling)
 

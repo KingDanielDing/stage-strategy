@@ -228,10 +228,23 @@ if mode.startswith("📈"):
 
     st.markdown('<div class="section-header">📉 Price Chart with Signals</div>', unsafe_allow_html=True)
     if entry_delay > 0:
-        st.caption(f"⏱️ Entry delay {entry_delay}d active: entries execute {entry_delay} "
-                   "trading day(s) after each BUY signal (▲ markers show signal dates); "
+        st.caption(f"⏱️ Entry delay {entry_delay}d active: ▲/▼ markers show actual "
+                   f"execution dates ({entry_delay} trading day(s) after each BUY signal); "
                    "whipsaw pairs whose exit precedes the delayed entry are removed.")
-    fig = _plot(stages_df, signals, trades, ticker, stats=stats)
+        # Draw markers at actual (delayed) execution dates so the chart
+        # reflects the delay — derived from the re-priced trades.
+        if trades:
+            plot_signals = pd.DataFrame(
+                [{"Date": t["Entry Date"], "Close": t["Entry Price"], "Signal": "BUY"}
+                 for t in trades]
+                + [{"Date": t["Exit Date"], "Close": t["Exit Price"], "Signal": "SELL"}
+                   for t in trades]
+            )
+        else:
+            plot_signals = signals
+    else:
+        plot_signals = signals
+    fig = _plot(stages_df, plot_signals, trades, ticker, stats=stats)
     st.pyplot(fig)
     plt.close(fig)
 

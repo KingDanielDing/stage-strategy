@@ -7,7 +7,7 @@ from daily_stage_v4 import retrieve_data, find_fvgs, generate_finals, compute_ma
 from daily_stage_v6 import _plot, MACD_FILTER_MODE, INITIAL_CAPITAL
 from rolling_stage_analysis import run_rolling_analysis, plot_rolling_results
 from batch_rolling_screen import evaluate_rolling
-from trade_pairs_delay import repriced_pairs
+from trade_pairs_delay import repriced_pairs, per_trade_stats
 warnings.filterwarnings("ignore")
 
 
@@ -184,7 +184,14 @@ if mode.startswith("📈"):
                 "PnL %": round(p["ret"], 2), "Capital": round(cap, 2),
             })
 
-    # ===== Custom Metric Cards (3 cols x 2 rows = no truncation) =====
+    # Per-trade returns/durations for efficiency stats (Sharpe, t-stat)
+    stat_pairs = [
+        {"ret": t["PnL %"],
+         "days": (pd.to_datetime(t["Exit Date"]) - pd.to_datetime(t["Entry Date"])).days}
+        for t in trades
+    ]
+
+    # ===== Custom Metric Cards (3 cols x 3 rows = no truncation) =====
     if trades:
         total_return = (final_capital / INITIAL_CAPITAL - 1) * 100
         win_count = sum(1 for t in trades if t["PnL %"] > 0)
@@ -218,7 +225,23 @@ if mode.startswith("📈"):
             "efficiency": total_return / len(trades),
         }
 
+        pts = per_trade_stats(stat_pairs)
+        sh, t_stat = pts["sharpe"], pts["t"]
+        sh_txt = f"{sh:+.3f}" if not np.isnan(sh) else "--"
+        t_txt = f"{t_stat:+.2f}" if not np.isnan(t_stat) else "--"
+        sig_txt = ("" if np.isnan(t_stat)
+                   else "≈95% significant" if abs(t_stat) >= 1.96
+                   else "not significant")
+
         r3c1, r3c2, r3c3 = st.columns(3)
+        r3c1.markdown(metric_html(
+            "Sharpe (per trade)", sh_txt,
+            f"mean {pts['mean']:+.2f}% / std {pts['std']:.2f}%",
+            "green" if sh > 0 else "red"), unsafe_allow_html=True)
+        r3c2.markdown(metric_html(
+            "t-stat", t_txt, sig_txt,
+            "green" if not np.isnan(t_stat) and abs(t_stat) >= 1.96 else ""),
+            unsafe_allow_html=True)
         eff = stats["efficiency"]
         r3c3.markdown(metric_html("Efficiency", f"{eff:+.2f}%", "",
                                   "green" if eff > 0 else "red"), unsafe_allow_html=True)

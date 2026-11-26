@@ -17,6 +17,7 @@ Usage:
 
 import sys
 
+import numpy as np
 import pandas as pd
 
 from daily_stage_v6 import MACD_FILTER_MODE, INITIAL_CAPITAL
@@ -86,6 +87,45 @@ def summarize(pairs, final_capital):
         "avg_loss": sum(p["ret"] for p in losses) / len(losses) if losses else 0.0,
         "avg_days": sum(p["days"] for p in pairs) / len(pairs),
     }
+
+
+def per_trade_stats(pairs, n_signals=None):
+    """Per-trade efficiency stats for one delay setting.
+
+    pairs      : list of dicts with "ret" (%) and "days" (calendar days held)
+    n_signals  : number of original BUY signals (trades at delay 0); when
+                 given, also compute mean-per-signal where deleted trades
+                 count as 0% — the opportunity-cost-honest view.
+
+    Returns dict: n, mean, std, sharpe, t (= sharpe*sqrt(n); |t| >= ~1.96
+    is ~95% significant), med, skew (moment), mean_per_day, mean_per_signal,
+    avg_days.
+    """
+    if not pairs:
+        return {"n": 0, "mean": 0.0, "std": 0.0, "sharpe": float("nan"),
+                "t": float("nan"), "med": 0.0, "skew": float("nan"),
+                "mean_per_day": 0.0, "mean_per_signal": None, "avg_days": 0.0}
+    rets = np.array([p["ret"] for p in pairs], dtype=float)
+    days = np.array([p["days"] for p in pairs], dtype=float)
+    n = len(rets)
+    mean = float(rets.mean())
+    std = float(rets.std(ddof=1)) if n > 1 else 0.0
+    sharpe = mean / std if std > 0 else float("nan")
+    t = sharpe * np.sqrt(n) if std > 0 else float("nan")
+    med = float(np.median(rets))
+    if n > 2 and std > 0:
+        m2 = float(((rets - mean) ** 2).mean())
+        m3 = float(((rets - mean) ** 3).mean())
+        skew = m3 / m2 ** 1.5 if m2 > 0 else float("nan")
+    else:
+        skew = float("nan")
+    # days >= 1 always (pairs with buy_date >= exit are deleted upstream)
+    mean_per_day = float((rets / days).mean())
+    mean_per_signal = float(rets.sum() / n_signals) if n_signals else None
+    return {"n": n, "mean": mean, "std": std, "sharpe": sharpe,
+            "t": float(t), "med": med, "skew": skew,
+            "mean_per_day": mean_per_day, "mean_per_signal": mean_per_signal,
+            "avg_days": float(days.mean())}
 
 
 # ---------------------------------------------------------------------------

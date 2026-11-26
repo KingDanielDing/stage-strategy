@@ -7,7 +7,13 @@ from daily_stage_v4 import retrieve_data, find_fvgs, generate_finals, compute_ma
 from daily_stage_v6 import _plot, MACD_FILTER_MODE, INITIAL_CAPITAL
 from rolling_stage_analysis import run_rolling_analysis, plot_rolling_results
 from batch_rolling_screen import evaluate_rolling
-from trade_pairs_delay import repriced_pairs, per_trade_stats
+from trade_pairs_delay import repriced_pairs
+try:
+    from trade_pairs_delay import per_trade_stats
+except ImportError:
+    # Deployed environment served a stale trade_pairs_delay module
+    # (raced/partial deploy). The app still runs; Sharpe cards are skipped.
+    per_trade_stats = None
 warnings.filterwarnings("ignore")
 
 
@@ -225,23 +231,23 @@ if mode.startswith("📈"):
             "efficiency": total_return / len(trades),
         }
 
-        pts = per_trade_stats(stat_pairs)
-        sh, t_stat = pts["sharpe"], pts["t"]
-        sh_txt = f"{sh:+.3f}" if not np.isnan(sh) else "--"
-        t_txt = f"{t_stat:+.2f}" if not np.isnan(t_stat) else "--"
-        sig_txt = ("" if np.isnan(t_stat)
-                   else "≈95% significant" if abs(t_stat) >= 1.96
-                   else "not significant")
-
         r3c1, r3c2, r3c3 = st.columns(3)
-        r3c1.markdown(metric_html(
-            "Sharpe (per trade)", sh_txt,
-            f"mean {pts['mean']:+.2f}% / std {pts['std']:.2f}%",
-            "green" if sh > 0 else "red"), unsafe_allow_html=True)
-        r3c2.markdown(metric_html(
-            "t-stat", t_txt, sig_txt,
-            "green" if not np.isnan(t_stat) and abs(t_stat) >= 1.96 else ""),
-            unsafe_allow_html=True)
+        if per_trade_stats is not None:
+            pts = per_trade_stats(stat_pairs)
+            sh, t_stat = pts["sharpe"], pts["t"]
+            sh_txt = f"{sh:+.3f}" if not np.isnan(sh) else "--"
+            t_txt = f"{t_stat:+.2f}" if not np.isnan(t_stat) else "--"
+            sig_txt = ("" if np.isnan(t_stat)
+                       else "≈95% significant" if abs(t_stat) >= 1.96
+                       else "not significant")
+            r3c1.markdown(metric_html(
+                "Sharpe (per trade)", sh_txt,
+                f"mean {pts['mean']:+.2f}% / std {pts['std']:.2f}%",
+                "green" if sh > 0 else "red"), unsafe_allow_html=True)
+            r3c2.markdown(metric_html(
+                "t-stat", t_txt, sig_txt,
+                "green" if not np.isnan(t_stat) and abs(t_stat) >= 1.96 else ""),
+                unsafe_allow_html=True)
         eff = stats["efficiency"]
         r3c3.markdown(metric_html("Efficiency", f"{eff:+.2f}%", "",
                                   "green" if eff > 0 else "red"), unsafe_allow_html=True)

@@ -1,0 +1,134 @@
+# ============================================================================
+#  WATCHLIST — this is the file you edit.
+#
+#  Add a line, remove a line, commit, push. The next scheduled run picks it up.
+#  No redeploy, no code change.
+#
+#      git pull --rebase                 # the job commits cache/ and reports/ back
+#      # ...edit this file...
+#      git add scanner/watchlist.yml && git commit -m "watchlist: add XYZ" && git push
+#
+#  You can also edit it straight from github.com on your phone.
+#
+#  FORMAT is  TICKER: display name
+#  The group decides WHEN the ticker is scanned:
+#      us      -> after the US close      (22:30 UTC)
+#      cn, hk  -> after the China close   (08:00 UTC)
+#
+#  Ticker case does not matter — 300124.sz and 300124.SZ both work, the loader
+#  uppercases before calling Yahoo. Display names are left exactly as you type them.
+# ============================================================================
+
+us:
+  NVDA: 英伟达
+  RVMD: Revolution Medicines
+  BABA: 阿里巴巴
+  SMCI: 超微电脑
+  LLY: 礼来
+  TSLA: 特斯拉
+  AAPL: 苹果
+  TSM: 台积电
+  MU: 美光科技
+  AVGO: 博通
+  XPEV: 小鹏汽车
+  LI: 理想汽车
+  DDL: 叮咚买菜
+  ATAT: 亚朵
+  JD: 京东
+  QQQ: NASDAQ 100 ETF
+  ORCL: 甲骨文
+  META: META
+  GOOGL: 谷歌
+  AMD: 超微
+  IBM: IBM
+  QCOM: 高通
+  INTC: INTEL
+  AMZN: 亚马逊
+  MSFT: 微软
+  BTC-USD: 比特币          # trades 24/7; its daily bar closes 00:00 UTC
+  GLD: 黄金 (ETF)          # your list said CL=F, which is WTI crude oil, not gold
+
+cn:
+  # --- ChiNext (300xxx / 301xxx) ---
+  300124.SZ: 汇川技术
+  300144.SZ: 宋城演艺
+  300274.SZ: 阳光电源
+  300308.SZ: 中际旭创
+  300398.SZ: 飞凯材料
+  300469.SZ: 信息发展
+  300476.SZ: 胜宏科技
+  300502.SZ: 新易盛
+  300505.SZ: 川金诺
+  300666.SZ: 江丰电子
+  300750.SZ: 宁德时代
+  300751.SZ: 迈为股份
+  300759.SZ: 康龙化成
+  300760.SZ: 迈瑞医疗
+  300806.SZ: 斯迪克
+  300812.SZ: 易天股份
+  301165.SZ: 锐捷网络
+  301217.SZ: 铜冠铜箔
+  301357.SZ: 北方长龙
+  # --- Shenzhen main board ---
+  000063.SZ: 中兴通讯
+  000795.SZ: 英洛华
+  000938.SZ: 紫光股份
+  000977.SZ: 浪潮信息
+  002185.SZ: 华天科技
+  002230.SZ: 科大讯飞
+  002241.SZ: 歌尔股份
+  002261.SZ: 拓维信息
+  002371.SZ: 北方华创
+  002428.SZ: 云南锗业
+  002460.SZ: 赣锋锂业
+  002645.SZ: 华宏科技
+  002747.SZ: 埃斯顿
+  002885.SZ: 京泉华
+  002950.SZ: 奥美医疗
+  # --- Shanghai main board ---
+  600010.SS: 包钢股份
+  600031.SS: 三一重工
+  600059.SS: 古越龙山
+  600089.SS: 特变电工
+  600188.SS: 兖矿能源
+  603257.SS: 中国瑞林
+  600354.SS: 敦煌种业
+  600362.SS: 江西铜业
+  600406.SS: 国电南瑞
+  600487.SS: 亨通光电
+  600519.SS: 贵州茅台
+  600522.SS: 中天科技
+  600547.SS: 山东黄金
+  600584.SS: 长电科技
+  600585.SS: 海螺水泥
+  600589.SS: 大位科技
+  600722.SS: 金牛化工
+  600845.SS: 宝信软件
+  600905.SS: 三峡能源
+  601012.SS: 隆基绿能
+  601138.SS: 工业富联
+  601579.SS: 会稽山
+  601669.SS: 中国电建
+  601689.SS: 拓普集团
+  601766.SS: 中国中车
+  603005.SS: 晶方科技
+  603118.SS: 共进股份
+  603257.SS: 中国瑞林
+  603618.SS: 杭电股份
+  603688.SS: 石英股份
+  603881.SS: 数据港
+  603986.SS: 兆易创新
+  603993.SS: 洛阳钼业
+  # --- STAR market (688xxx) ---
+  688008.SS: 澜起科技
+  688012.SS: 中微公司
+  688016.SS: 新麦医疗
+  688041.SS: 海光信息
+  688141.SS: 华杰特
+  688256.SS: 寒武纪
+  688525.SS: 佰维存储
+
+hk:
+  9988.HK: 阿里巴巴-W
+  1810.HK: 小米集团-W
+  

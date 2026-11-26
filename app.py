@@ -7,6 +7,7 @@ from daily_stage_v4 import retrieve_data, find_fvgs, generate_finals, compute_ma
 from daily_stage_v6 import _plot, MACD_FILTER_MODE, INITIAL_CAPITAL
 from rolling_stage_analysis import run_rolling_analysis, plot_rolling_results
 from batch_rolling_screen import evaluate_rolling
+from trade_pairs_delay import repriced_pairs
 warnings.filterwarnings("ignore")
 
 
@@ -101,6 +102,10 @@ with st.sidebar:
     c1, c2 = st.columns(2)
     with c1: start_date = st.date_input("**Start**", value=default_start)
     with c2: end_date = st.date_input("**End**", value=default_end)
+    entry_delay = st.selectbox(
+        "**Entry delay (trading days)**", [0, 1, 2, 3], index=1,
+        help="Rule of thumb: enter 1 trading day after the BUY signal to skip "
+             "whipsaw trades (see delay_walkforward.py analysis)")
     st.markdown("---")
     if st.button("🚀 Run Analysis", type="primary", width="stretch"):
         st.session_state["run"] = True
@@ -165,6 +170,20 @@ if mode.startswith("📈"):
             signals, raw_df=stages_df, initial_capital=INITIAL_CAPITAL
         )
 
+    # Rule-of-thumb entry delay: re-price entries N bars later and drop
+    # whipsaw pairs whose exit arrives before the delayed entry.
+    if entry_delay > 0 and trades:
+        pairs, final_capital = repriced_pairs(stages_df, trades, entry_delay)
+        cap = INITIAL_CAPITAL
+        trades = []
+        for p in pairs:
+            cap *= 1 + p["ret"] / 100
+            trades.append({
+                "Entry Date": p["buy_date"], "Entry Price": round(p["buy_price"], 2),
+                "Exit Date": p["sell_date"], "Exit Price": round(p["sell_price"], 2),
+                "PnL %": round(p["ret"], 2), "Capital": round(cap, 2),
+            })
+
     # ===== Custom Metric Cards (3 cols x 2 rows = no truncation) =====
     if trades:
         total_return = (final_capital / INITIAL_CAPITAL - 1) * 100
@@ -208,6 +227,10 @@ if mode.startswith("📈"):
         stats = None
 
     st.markdown('<div class="section-header">📉 Price Chart with Signals</div>', unsafe_allow_html=True)
+    if entry_delay > 0:
+        st.caption(f"⏱️ Entry delay {entry_delay}d active: entries execute {entry_delay} "
+                   "trading day(s) after each BUY signal (▲ markers show signal dates); "
+                   "whipsaw pairs whose exit precedes the delayed entry are removed.")
     fig = _plot(stages_df, signals, trades, ticker, stats=stats)
     st.pyplot(fig)
     plt.close(fig)
@@ -264,13 +287,14 @@ if mode.startswith("📈"):
 # ===========================================================================
 else:
     st.subheader(f"🔄 Rolling Window Analysis: {ticker}")
-    st.caption(f"Period: {start} → {end} | Window: 1 year | Step: 1 month")
+    st.caption(f"Period: {start} → {end} | Window: 1 year | Step: 1 month"
+               f" | Entry delay: {entry_delay}d")
 
     try:
         with st.spinner(f"Running rolling analysis for {ticker} …"):
             results_df, raw_all = run_rolling_analysis(
                 ticker, window_years=1, step_months=1,
-                start_date=start, end_date=end,
+                start_date=start, end_date=end, entry_delay=entry_delay,
             )
 
         if results_df.empty:

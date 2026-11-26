@@ -35,6 +35,7 @@ from daily_stage_v4 import (
     generate_trade_signals,
     backtest_trades,
 )
+from trade_pairs_delay import repriced_pairs
 
 # ---------------------------------------------------------------------------
 # Configuration (mirrors daily_stage_v6.py)
@@ -54,6 +55,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 def compute_window_metrics(
     raw_df: pd.DataFrame,
     initial_capital: float = INITIAL_CAPITAL,
+    entry_delay: int = 0,
 ) -> dict:
     """
     Run the full stage-pattern + backtest pipeline on *raw_df* and return
@@ -64,6 +66,10 @@ def compute_window_metrics(
     raw_df : pd.DataFrame
         Daily OHLCV data (columns: Date, Open, High, Low, Close, Volume).
     initial_capital : float
+    entry_delay : int
+        Rule-of-thumb entry delay in trading days (0 = off). When > 0,
+        each BUY is re-priced at the close N bars later and pairs whose
+        exit arrives first are dropped (see trade_pairs_delay.py).
 
     Returns
     -------
@@ -111,6 +117,16 @@ def compute_window_metrics(
         signals, raw_df=stages_df, initial_capital=initial_capital
     )
 
+    # 7b. Optional entry delay: re-price entries N bars later, drop whipsaws
+    if entry_delay > 0 and trades:
+        pairs, final_capital = repriced_pairs(stages_df, trades, entry_delay)
+        trades = [
+            {"Entry Date": pd.Timestamp(p["buy_date"]),
+             "Exit Date": pd.Timestamp(p["sell_date"]),
+             "PnL %": p["ret"]}
+            for p in pairs
+        ]
+
     # 8. Compute metrics
     total_return = (final_capital / initial_capital - 1) * 100
 
@@ -156,6 +172,7 @@ def run_rolling_analysis(
     step_months: int = STEP_MONTHS,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    entry_delay: int = 0,
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Compute rolling Return & Win rate for *ticker*.
@@ -198,6 +215,8 @@ def run_rolling_analysis(
     print(f"  Window : {window_years} year(s), step : {step_months} month(s)")
     print(f"  Range  : {start_date} → {end_date}")
     print(f"  MACD filter: {MACD_FILTER_MODE}")
+    if entry_delay:
+        print(f"  Entry delay: {entry_delay}d")
     print(f"\n  Fetching full data from {fetch_start} → {end_date} ...")
     raw_all = retrieve_data(ticker, end_date, fetch_start)
 
@@ -238,7 +257,7 @@ def run_rolling_analysis(
             skipped += 1
             continue
 
-        result = compute_window_metrics(raw_slice)
+        result = compute_window_metrics(raw_slice, entry_delay=entry_delay)
 
         # Filter trades: only those whose entry date is within the actual window
         all_trades = result["trades"]
